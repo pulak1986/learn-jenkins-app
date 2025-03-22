@@ -3,6 +3,7 @@ pipeline {
 
     stages {
         /*
+
         stage('Build') {
             agent {
                 docker {
@@ -11,14 +12,14 @@ pipeline {
                 }
             }
             steps {
-                script {
-                    sh '''
-                    echo "Running npm ci..."
+                sh '''
+                    ls -la
+                    node --version
+                    npm --version
                     npm ci
-                    echo "Building the project..."
                     npm run build
-                    '''
-                }
+                    ls -la
+                '''
             }
         }
         */
@@ -30,17 +31,12 @@ pipeline {
                     reuseNode true
                 }
             }
+
             steps {
-                script {
-                    // Install dependencies if not installed yet
-                    sh 'npm ci'
-                    
-                    // Check if build/index.html exists
-                    sh 'test -f build/index.html'
-                    
-                    // Run unit tests
-                    sh 'npm test'
-                }
+                sh '''
+                    #test -f build/index.html
+                    npm test
+                '''
             }
         }
 
@@ -51,37 +47,20 @@ pipeline {
                     reuseNode true
                 }
             }
+
             steps {
-                script {
-                    // Install dependencies and serve the build
-                    sh 'npm ci'
-                    sh 'npm install serve'
-
-                    // Serve the build output
-                    sh 'node_modules/.bin/serve -s build &'
-
-                    // Wait for the server to be ready
-                    sh '''
-                    for i in {1..30}; do
-                        if curl -s http://localhost:5000 > /dev/null; then
-                            echo "Server is ready."
-                            break
-                        fi
-                        echo "Waiting for server to be ready..."
-                        sleep 1
-                    done
-                    '''
-
-                    // Run E2E tests with Playwright
-                    sh 'npx playwright test'
-                }
+                sh '''
+                    npm install serve
+                    node_modules/.bin/serve -s build &
+                    sleep 10
+                    npx playwright test
+                '''
             }
         }
     }
 
     post {
         always {
-            // Archive test results (make sure your test results are in the right directory)
             junit 'jest-results/junit.xml'
         }
     }
