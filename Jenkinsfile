@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     stages {
-        stage('Build') {
+        stage('Build'){
             agent {
                 docker {
                     image 'node:18-alpine'
@@ -10,14 +10,26 @@ pipeline {
                 }
             }
             steps {
-                sh '''
+                script {
+                    // List files and check node/npm versions
+                    sh '''
+                    echo "Listing files before npm install:"
                     ls -la
+                    echo "Node version:"
                     node --version
+                    echo "NPM version:"
                     npm --version
+                    
+                    echo "Running npm ci..."
                     npm ci
-                    npm run build
+                    
+                    echo "Listing files after npm install:"
                     ls -la
-                '''
+
+                    echo "Running npm build..."
+                    npm run build
+                    '''
+                }
             }
         }
     }
