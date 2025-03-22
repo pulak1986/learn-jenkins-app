@@ -3,7 +3,7 @@ pipeline {
 
     stages {
         /*
-        stage('Build'){
+        stage('Build') {
             agent {
                 docker {
                     image 'node:18-alpine'
@@ -12,42 +12,38 @@ pipeline {
             }
             steps {
                 script {
-                    // List files and check node/npm versions
                     sh '''
-                    echo "Listing files before npm install:"
-                    ls -la
-                    echo "Node version:"
-                    node --version
-                    echo "NPM version:"
-                    npm --version
-                    
                     echo "Running npm ci..."
                     npm ci
-                    
-                    echo "Listing files after npm install:"
-                    ls -la
-
-                    echo "Running npm build..."
+                    echo "Building the project..."
                     npm run build
                     '''
                 }
             }
-        } */
-         stage('Test') {
+        }
+        */
+
+        stage('Test') {
             agent {
                 docker {
                     image 'node:18-alpine'
                     reuseNode true
                 }
             }
-
             steps {
-                sh '''
-                    test -f build/index.html
-                    npm test
-                '''
+                script {
+                    // Install dependencies if not installed yet
+                    sh 'npm ci'
+                    
+                    // Check if build/index.html exists
+                    sh 'test -f build/index.html'
+                    
+                    // Run unit tests
+                    sh 'npm test'
+                }
             }
         }
+
         stage('E2E') {
             agent {
                 docker {
@@ -55,22 +51,38 @@ pipeline {
                     reuseNode true
                 }
             }
-
             steps {
-                sh '''
-                    npm install serve
-                    node_modules/.bin/serve -s build &
-                    sleep 10
-                    npx playwright test
-                '''
+                script {
+                    // Install dependencies and serve the build
+                    sh 'npm ci'
+                    sh 'npm install serve'
+
+                    // Serve the build output
+                    sh 'node_modules/.bin/serve -s build &'
+
+                    // Wait for the server to be ready
+                    sh '''
+                    for i in {1..30}; do
+                        if curl -s http://localhost:5000 > /dev/null; then
+                            echo "Server is ready."
+                            break
+                        fi
+                        echo "Waiting for server to be ready..."
+                        sleep 1
+                    done
+                    '''
+
+                    // Run E2E tests with Playwright
+                    sh 'npx playwright test'
+                }
             }
         }
-        post {
-            
+    }
+
+    post {
         always {
+            // Archive test results (make sure your test results are in the right directory)
             junit 'jest-results/junit.xml'
         }
     }
-    }
-    }
-
+}
